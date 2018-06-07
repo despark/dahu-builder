@@ -32,10 +32,11 @@
 [[constraint]]
   name = "github.com/spf13/viper"
   version = "1.0.2"
-[[constraint]]
-  name = "github.com/aws/aws-sdk-go"
-  version = "1.14.1"
 
 [[constraint]]
   branch = "master"
   name = "github.com/otiai10/copy"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/pierrre/archivefile"

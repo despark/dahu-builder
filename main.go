@@ -5,9 +5,9 @@ import (
 	"dahu-api-builder/pkg/conf"
 	"flag"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type mapStringFlags map[string]bool
@@ -24,37 +24,35 @@ func (i mapStringFlags) Set(value string) error {
 var envs = mapStringFlags{}
 
 func main() {
-	c := conf.Init("config", "config")
 
+	cPath := flag.String("config", "config/config.json", "Build config file")
 	flag.Var(&envs, "env", "Which environments to build")
-
-	wdir := flag.String("workdir", "", "Override working directory")
+	wDir := flag.String("workdir", "", "Override working directory")
+	baseBuild := flag.Bool("base", false, "Create base build")
 	flag.Parse()
 
-	swDir := selectWorkDir(wdir)
+	cDir := filepath.Dir(*cPath)
+	cName := fileNoExt(filepath.Base(*cPath))
+
+	c := conf.Init(cDir, cName)
+	swDir := selectWorkDir(wDir)
 
 	fmt.Println(c.General.WorkDir)
 
 	ch := make(chan string)
 
-	awsSess := session.Must(session.NewSessionWithOptions(session.Options{
-		Profile: "profile_name",
-	}))
-
-	aws := builder.Aws{
-		Session: awsSess,
-	}
-
 	var envBuildLen = 0
 	for _, v := range c.General.Environments {
 		if envs[v.Name] {
 			b := builder.Build{
-				Name:       v.Name,
+				Env:        v.Name,
 				Repo:       c.General.Repo,
-				DockerDir:  c.General.DockerDir,
+				Docker:     c.General.Docker,
 				Branch:     v.Branch,
 				WorkingDir: swDir,
-				Aws:        aws,
+				Aws:        c.General.Aws,
+				BaseBuild:  *baseBuild,
+				Terraform:  c.General.Terraform,
 			}
 
 			go b.Run(ch)
@@ -66,6 +64,14 @@ func main() {
 		fmt.Println()
 		fmt.Printf("Environment %s is built!", <-ch)
 	}
+}
+
+func fileNoExt(s string) string {
+	n := strings.LastIndexByte(s, '.')
+	if n >= 0 {
+		return s[:n]
+	}
+	return s
 }
 
 func selectWorkDir(wdir *string) string {

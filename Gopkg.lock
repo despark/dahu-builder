@@ -2,49 +2,10 @@
 
 
 [[projects]]
-  name = "github.com/aws/aws-sdk-go"
-  packages = [
-    "aws",
-    "aws/awserr",
-    "aws/awsutil",
-    "aws/client",
-    "aws/client/metadata",
-    "aws/corehandlers",
-    "aws/credentials",
-    "aws/credentials/ec2rolecreds",
-    "aws/credentials/endpointcreds",
-    "aws/credentials/stscreds",
-    "aws/csm",
-    "aws/defaults",
-    "aws/ec2metadata",
-    "aws/endpoints",
-    "aws/request",
-    "aws/session",
-    "aws/signer/v4",
-    "internal/sdkio",
-    "internal/sdkrand",
-    "internal/shareddefaults",
-    "private/protocol",
-    "private/protocol/query",
-    "private/protocol/query/queryutil",
-    "private/protocol/rest",
-    "private/protocol/xml/xmlutil",
-    "service/sts"
-  ]
-  revision = "47309c012812d9e9c488a54313e5cdfa7479df93"
-  version = "v1.14.1"
-
-[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
   version = "v1.4.7"
-
-[[projects]]
-  name = "github.com/go-ini/ini"
-  packages = ["."]
-  revision = "06f5f3d67269ccec1fe5fe4134ba6e982984f7f5"
-  version = "v1.37.0"
 
 [[projects]]
   branch = "master"
@@ -62,11 +23,6 @@
     "json/token"
   ]
   revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
-
-[[projects]]
-  name = "github.com/jmespath/go-jmespath"
-  packages = ["."]
-  revision = "0b12d6b5"
 
 [[projects]]
   name = "github.com/magiconair/properties"
@@ -91,6 +47,12 @@
   packages = ["."]
   revision = "c01d1270ff3e442a8a57cddc1c92dc1138598194"
   version = "v1.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/pierrre/archivefile"
+  packages = ["zip"]
+  revision = "e2d100bc74f58ed7d2f41175cd2cf5fe29446399"
 
 [[projects]]
   name = "github.com/spf13/afero"
@@ -129,7 +91,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "538ab54ba952cc4c7c705fa213fbf7993c97c175"
+  revision = "9527bec2660bd847c050fda93a0f0c6dee0800bb"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -153,6 +115,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "49e71de51f820de78878d65f0130bb5868a09b4faa91bf00559e64e7f2da5c20"
+  inputs-digest = "23541bf4ba73d5d21b0832766c8ec6163ce6f4f23c1f859bdac410cb2f6b442e"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -7,14 +7,32 @@ import (
 
 type general struct {
 	WorkDir      string
-	DockerDir    string
+	Docker       Docker
+	Terraform    Terraform
 	Repo         string
+	Aws          Aws
 	Environments []env
 }
 
 type env struct {
 	Name   string
 	Branch string
+}
+
+type Aws struct {
+	Profile string
+	Bucket  string
+}
+
+type Docker struct {
+	Dir      string
+	Image    string
+	Username string
+	Password string
+}
+
+type Terraform struct {
+	Dir string
 }
 
 type Conf struct {
