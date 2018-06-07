@@ -159,8 +159,8 @@ func (b *Build) makeArtifact() {
 
 	ebExt := b.buildDir + "/.ebextensions/"
 	files := map[string]string{
-		dRun:  "",
-		ebExt: ".ebextensions",
+		dRun:  "/",
+		ebExt: ".ebextensions/",
 	}
 
 	for file, archPath := range files {
