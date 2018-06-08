@@ -2,13 +2,15 @@ package builder
 
 import (
 	"bytes"
-	"dahu-api-builder/pkg/conf"
+	"dahu-builder/pkg/conf"
 	"fmt"
 	"github.com/otiai10/copy"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -21,6 +23,7 @@ type Build struct {
 	Branch       string
 	Docker       conf.Docker
 	Terraform    conf.Terraform
+	Admin        conf.Admin
 	WorkingDir   string
 	BaseBuild    bool
 	Aws          conf.Aws
@@ -42,11 +45,17 @@ func (b Build) Run(msg chan string) {
 		panic(err.Error())
 	}
 
+	ch := make(chan bool)
+
+	go b.admin(ch)
+
 	b.checkout()
 	b.copy()
 	b.ufo()
 	b.makeArtifact()
 	b.release()
+
+	<-ch
 
 	msg <- b.Env
 }
@@ -81,7 +90,7 @@ func (b Build) copy() {
 			"--profile="+b.Aws.Profile,
 			"s3", "sync",
 			"s3://"+b.Aws.Bucket+"/var/"+b.Env+"/jwt",
-			b.srcDir+"/var/"+b.Env+"/jwt")
+			b.srcDir+"/var/jwt")
 
 		done <- true
 	}(awsBin, b, done)
@@ -92,7 +101,7 @@ func (b Build) copy() {
 			"--profile="+b.Aws.Profile,
 			"s3", "sync",
 			"s3://"+b.Aws.Bucket+"/var/"+b.Env+"/ios",
-			b.srcDir+"/var/"+b.Env+"/ios")
+			b.srcDir+"/var/ios")
 		done <- true
 	}(awsBin, b, done)
 
@@ -125,7 +134,7 @@ func (b Build) copy() {
 
 }
 
-func (b Build) ufo() {
+func (b *Build) ufo() {
 	ufoBin := findCommand("ufo")
 
 	dockerLogin(b.Docker.Username, b.Docker.Password)
@@ -159,7 +168,7 @@ func (b *Build) makeArtifact() {
 
 	ebExt := b.buildDir + "/.ebextensions/"
 	files := map[string]string{
-		dRun:  "/",
+		dRun:  "",
 		ebExt: ".ebextensions/",
 	}
 
@@ -172,22 +181,22 @@ func (b *Build) makeArtifact() {
 }
 
 func (b Build) release() {
-	vt := b.buildDir + "/version.template"
-	tid := b.Terraform.Dir + "/instances/" + b.Env
-	vfp := tid + "/versions.tf"
-	c, err := ioutil.ReadFile(vt)
-	errPanic(err)
-
-	newVersion := strings.Replace(string(c), "%version%", b.version, -1)
-
-	f, err := os.OpenFile(vfp, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	errPanic(err)
-
-	_, err = f.Write([]byte(newVersion))
-	errPanic(err)
-
-	err = f.Close()
-	errPanic(err)
+	//vt := b.buildDir + "/version.template"
+	//tid := b.Terraform.Dir + "/instances/" + b.Env
+	//vfp := tid + "/versions.tf"
+	//c, err := ioutil.ReadFile(vt)
+	//errPanic(err)
+	//
+	//newVersion := strings.Replace(string(c), "%version%", b.version, -1)
+	//
+	//f, err := os.OpenFile(vfp, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	//errPanic(err)
+	//
+	//_, err = f.Write([]byte(newVersion))
+	//errPanic(err)
+	//
+	//err = f.Close()
+	//errPanic(err)
 
 	artifactName := filepath.Base(b.artifact)
 
@@ -198,6 +207,92 @@ func (b Build) release() {
 		"s3", "cp",
 		b.artifact,
 		"s3://"+b.Aws.Bucket+"/builds/"+artifactName)
+	//aws elasticbeanstalk create-application-version --application-name MyApp --version-label v1 --description MyAppv1 --source-bundle S3Bucket="my-bucket",S3Key="sample.war" --auto-create-application
+	_exec(awsBin, "",
+		"--profile="+b.Aws.Profile,
+		"elasticbeanstalk", "create-application-version",
+		"--application-name", "dahu-api",
+		"--version-label", b.version,
+		"--description", "n/a",
+		"--source-bundle", "S3Bucket=\""+b.Aws.Bucket+"\",S3Key=\"builds/"+artifactName+"\"",
+		"--auto-create-application",
+	)
+}
+
+func (b Build) admin(ch chan bool) {
+	gitBin := findCommand("git")
+
+	adminDir := b.buildDir + "/admin"
+	_exec(gitBin, "", "clone", b.Admin.Repo, adminDir)
+	_exec(gitBin, "", "-C", adminDir, "checkout", b.Admin.Branch)
+	rev, _ := _exec(gitBin, "", "-C", adminDir, "rev-parse", "--short", "HEAD")
+
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	aLockFile := ""
+	if usr.HomeDir != "" {
+		homeBuildPath := usr.HomeDir + "/.dahu-build"
+		aLockFile = homeBuildPath + "/admin.lock"
+		os.MkdirAll(homeBuildPath, os.FileMode(0755))
+	}
+
+	build := false
+
+	c, err := ioutil.ReadFile(aLockFile)
+	if err != nil {
+		fmt.Printf("cannot read or missing lockfile, creating new build: %s\n", err.Error())
+		build = true
+	}
+
+	if string(c) != rev {
+		build = true
+	}
+
+	if build {
+		buildAdmin(b, adminDir)
+		err = ioutil.WriteFile(aLockFile, []byte(rev), os.FileMode(0644))
+		if err != nil {
+			fmt.Printf("Cannot create lock file: %s\n", err.Error())
+		}
+	} else {
+		fmt.Println("Admin already on latest version.")
+	}
+
+	ch <- true
+}
+
+func buildAdmin(b Build, path string) {
+	yarnBin := findCommand("yarn")
+	terraformBin := findCommand("terraform")
+	awsBin := findCommand("aws")
+	hostname, _ := _exec(terraformBin, b.Terraform.Dir, "output", b.Env+"_host")
+
+	host := "https://" + hostname
+
+	_exec(yarnBin, path, "install", "--silent")
+
+	cmd := exec.Command(yarnBin, "build")
+	cmd.Dir = path
+
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, fmt.Sprintf("REACT_APP_BASE_API_URL=%s", host))
+
+	fmt.Printf("Executing: %s\n\n", strings.Join(cmd.Args, " "))
+
+	err := cmd.Start()
+	if err != nil {
+		panic(fmt.Sprintf("cmd.Start() failed with '%s'\n", err))
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		panic(fmt.Sprintf("cmd.Run() failed with %s\n", err))
+	}
+
+	_exec(awsBin, "", "s3", "--profile", b.Aws.Profile, "sync", "--delete", path+"/build", "s3://admin-"+b.Env)
 }
 
 func errPanic(err error) {
@@ -256,6 +351,8 @@ func _exec(name string, workdir string, args ...string) (string, string) {
 	if workdir != "" {
 		cmd.Dir = workdir
 	}
+
+	cmd.Env = os.Environ()
 
 	fmt.Printf("Executing: %s\n\n", strings.Join(cmd.Args, " "))
 

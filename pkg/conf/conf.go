@@ -9,6 +9,7 @@ type general struct {
 	WorkDir      string
 	Docker       Docker
 	Terraform    Terraform
+	Admin        Admin
 	Repo         string
 	Aws          Aws
 	Environments []env
@@ -29,6 +30,11 @@ type Docker struct {
 	Image    string
 	Username string
 	Password string
+}
+
+type Admin struct {
+	Repo   string
+	Branch string
 }
 
 type Terraform struct {

@@ -9,6 +9,7 @@ import (
 
 type Artifact struct {
 	writer *zip.Writer
+	dirs   []string
 }
 
 func NewArtifact(filePath string) Artifact {
@@ -22,30 +23,60 @@ func NewArtifact(filePath string) Artifact {
 }
 
 func (a Artifact) Add(file string, archiveDir string) error {
-
-	err := filepath.Walk(file, func(filePath string, fileInfo os.FileInfo, err error) error {
-		archivePath := archiveDir + filepath.Base(filePath)
-		if err != nil || fileInfo.IsDir() {
+	err := filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
 			return err
 		}
+
+		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
 		}
 
-		file, err := os.Open(filePath)
+		if archiveDir != "" {
+			header.Name = archiveDir + filepath.Base(path)
+
+			if archiveDir[len(archiveDir)-1:] != "/" {
+				header.Method = zip.Deflate
+			} else {
+				// we need to create the dir in the archive if it's missing
+				dirHeader, err := func(name string) (*zip.FileHeader, error) {
+					fh := &zip.FileHeader{
+						Name:               name,
+						UncompressedSize64: uint64(0),
+					}
+					fh.SetMode(os.ModeDir)
+
+					return fh, nil
+				}(archiveDir)
+
+				_, err = a.writer.CreateHeader(dirHeader)
+
+				if err != nil {
+					return err
+				}
+
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		writer, err := a.writer.CreateHeader(header)
 		if err != nil {
 			return err
 		}
-		defer func() {
-			_ = file.Close()
-		}()
 
-		zipFileWriter, err := a.writer.Create(archivePath)
+		if info.IsDir() {
+			return nil
+		}
+
+		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
-
-		_, err = io.Copy(zipFileWriter, file)
+		defer file.Close()
+		_, err = io.Copy(writer, file)
 		return err
 	})
 

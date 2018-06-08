@@ -1,8 +1,8 @@
 package main
 
 import (
-	"dahu-api-builder/pkg/builder"
-	"dahu-api-builder/pkg/conf"
+	"dahu-builder/pkg/builder"
+	"dahu-builder/pkg/conf"
 	"flag"
 	"fmt"
 	"os"
@@ -24,7 +24,6 @@ func (i mapStringFlags) Set(value string) error {
 var envs = mapStringFlags{}
 
 func main() {
-
 	cPath := flag.String("config", "config/config.json", "Build config file")
 	flag.Var(&envs, "env", "Which environments to build")
 	wDir := flag.String("workdir", "", "Override working directory")
@@ -53,6 +52,7 @@ func main() {
 				Aws:        c.General.Aws,
 				BaseBuild:  *baseBuild,
 				Terraform:  c.General.Terraform,
+				Admin:      c.General.Admin,
 			}
 
 			go b.Run(ch)

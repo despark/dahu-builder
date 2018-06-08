@@ -36,7 +36,3 @@
 [[constraint]]
   branch = "master"
   name = "github.com/otiai10/copy"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/pierrre/archivefile"
