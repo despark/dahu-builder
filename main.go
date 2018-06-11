@@ -28,6 +28,8 @@ func main() {
 	flag.Var(&envs, "env", "Which environments to build")
 	wDir := flag.String("workdir", "", "Override working directory")
 	baseBuild := flag.Bool("base", false, "Create base build")
+	noAdmin := flag.Bool("no-admin", false, "Don't make admin build")
+	adminOnly := flag.Bool("admin-only", false, "Build only admin")
 	flag.Parse()
 
 	cDir := filepath.Dir(*cPath)
@@ -53,6 +55,8 @@ func main() {
 				BaseBuild:  *baseBuild,
 				Terraform:  c.General.Terraform,
 				Admin:      c.General.Admin,
+				NoAdmin:    *noAdmin,
+				AdminOnly:  *adminOnly,
 			}
 
 			go b.Run(ch)

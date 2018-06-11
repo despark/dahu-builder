@@ -26,12 +26,14 @@ type Build struct {
 	Admin        conf.Admin
 	WorkingDir   string
 	BaseBuild    bool
+	NoAdmin      bool
 	Aws          conf.Aws
 	buildDir     string
 	srcDir       string
 	version      string
 	imageVersion string
 	artifact     string
+	AdminOnly    bool
 }
 
 var timestamp = strconv.FormatInt(time.Now().Unix(), 10)
@@ -47,15 +49,21 @@ func (b Build) Run(msg chan string) {
 
 	ch := make(chan bool)
 
-	go b.admin(ch)
+	if b.NoAdmin == false {
+		go b.admin(ch)
+	}
 
-	b.checkout()
-	b.copy()
-	b.ufo()
-	b.makeArtifact()
-	b.release()
+	if b.AdminOnly == false {
+		b.checkout()
+		b.copy()
+		b.ufo()
+		b.makeArtifact()
+		b.release()
+	}
 
-	<-ch
+	if b.NoAdmin == false {
+		<-ch
+	}
 
 	msg <- b.Env
 }
@@ -67,7 +75,7 @@ func (b *Build) checkout() {
 
 	rev, _ := _exec(gitBin, "", "-C", b.srcDir, "rev-parse", "--short", "HEAD")
 
-	b.version = rev + "-" + timestamp
+	b.version = strings.ToUpper(b.Env) + "-" + rev + "-" + timestamp
 
 	if os.RemoveAll(b.srcDir+"/.git") != nil {
 		panic("Cannot remove .git folder")
@@ -205,6 +213,8 @@ func (b Build) release() {
 		"",
 		"--profile="+b.Aws.Profile,
 		"s3", "cp",
+		"--content-type",
+		"application/zip",
 		b.artifact,
 		"s3://"+b.Aws.Bucket+"/builds/"+artifactName)
 	//aws elasticbeanstalk create-application-version --application-name MyApp --version-label v1 --description MyAppv1 --source-bundle S3Bucket="my-bucket",S3Key="sample.war" --auto-create-application
@@ -227,6 +237,8 @@ func (b Build) admin(ch chan bool) {
 	_exec(gitBin, "", "-C", adminDir, "checkout", b.Admin.Branch)
 	rev, _ := _exec(gitBin, "", "-C", adminDir, "rev-parse", "--short", "HEAD")
 
+	buildRev := b.Env + "-" + rev
+
 	usr, err := user.Current()
 	if err != nil {
 		log.Fatal(err)
@@ -235,7 +247,7 @@ func (b Build) admin(ch chan bool) {
 	aLockFile := ""
 	if usr.HomeDir != "" {
 		homeBuildPath := usr.HomeDir + "/.dahu-build"
-		aLockFile = homeBuildPath + "/admin.lock"
+		aLockFile = homeBuildPath + "/admin-" + b.Env + ".lock"
 		os.MkdirAll(homeBuildPath, os.FileMode(0755))
 	}
 
@@ -247,13 +259,13 @@ func (b Build) admin(ch chan bool) {
 		build = true
 	}
 
-	if string(c) != rev {
+	if string(c) != buildRev {
 		build = true
 	}
 
 	if build {
 		buildAdmin(b, adminDir)
-		err = ioutil.WriteFile(aLockFile, []byte(rev), os.FileMode(0644))
+		err = ioutil.WriteFile(aLockFile, []byte(buildRev), os.FileMode(0644))
 		if err != nil {
 			fmt.Printf("Cannot create lock file: %s\n", err.Error())
 		}
@@ -292,7 +304,7 @@ func buildAdmin(b Build, path string) {
 		panic(fmt.Sprintf("cmd.Run() failed with %s\n", err))
 	}
 
-	_exec(awsBin, "", "s3", "--profile", b.Aws.Profile, "sync", "--delete", path+"/build", "s3://admin-"+b.Env)
+	_exec(awsBin, "", "s3", "--profile", b.Aws.Profile, "sync", "--delete", path+"/build", "s3://dahu-admin-"+b.Env)
 }
 
 func errPanic(err error) {
