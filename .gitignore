@@ -1,5 +1,5 @@
-/config/config.json
 vendor
+deploy.json
 deploy.sh
 .idea
 resources
