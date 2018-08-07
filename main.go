@@ -1,8 +1,8 @@
 package main
 
 import (
-	"dahu-builder/pkg/builder"
-	"dahu-builder/pkg/conf"
+	"dahu-builder/builder"
+	"dahu-builder/conf"
 	"flag"
 	"fmt"
 	"os"
@@ -24,7 +24,7 @@ func (i mapStringFlags) Set(value string) error {
 var envs = mapStringFlags{}
 
 func main() {
-	cPath := flag.String("config", "config/config.json", "Build config file")
+	cPath := flag.String("config", "deploy.json", "Build config file")
 	flag.Var(&envs, "env", "Which environments to build")
 	wDir := flag.String("workdir", "", "Override working directory")
 	baseBuild := flag.Bool("base", false, "Create base build")

@@ -49,12 +49,6 @@
   version = "v1.2.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/pierrre/archivefile"
-  packages = ["zip"]
-  revision = "e2d100bc74f58ed7d2f41175cd2cf5fe29446399"
-
-[[projects]]
   name = "github.com/spf13/afero"
   packages = [
     ".",
@@ -115,6 +109,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "23541bf4ba73d5d21b0832766c8ec6163ce6f4f23c1f859bdac410cb2f6b442e"
+  inputs-digest = "38444c02988714da81c584cfbc714525ffb22fa78b7305be9bf313b0b73fbd65"
   solver-name = "gps-cdcl"
   solver-version = 1

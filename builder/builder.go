@@ -2,7 +2,7 @@ package builder
 
 import (
 	"bytes"
-	"dahu-builder/pkg/conf"
+	"dahu-builder/conf"
 	"fmt"
 	"github.com/otiai10/copy"
 	"io"
