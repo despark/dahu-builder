@@ -356,46 +356,55 @@ func dockerLogin(u string, p string) {
 }
 
 func _exec(name string, workdir string, args ...string) (string, string) {
-	var stdoutBuf, stderrBuf bytes.Buffer
-
-	cmd := exec.Command(name, args...)
-
-	if workdir != "" {
-		cmd.Dir = workdir
-	}
-
-	cmd.Env = os.Environ()
-
-	fmt.Printf("Executing: %s\n\n", strings.Join(cmd.Args, " "))
-
-	stdoutIn, _ := cmd.StdoutPipe()
-	stderrIn, _ := cmd.StderrPipe()
-
-	var errStdout, errStderr error
-	stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
-	stderr := io.MultiWriter(os.Stderr, &stderrBuf)
-	err := cmd.Start()
-	if err != nil {
-		panic(fmt.Sprintf("cmd.Start() failed with '%s'\n", err))
-	}
-
-	go func() {
-		_, errStdout = io.Copy(stdout, stdoutIn)
-	}()
-
-	go func() {
-		_, errStderr = io.Copy(stderr, stderrIn)
-	}()
-
-	err = cmd.Wait()
-	if err != nil {
-		panic(fmt.Sprintf("cmd.Run() failed with %s\n", err))
-	}
-	if errStdout != nil || errStderr != nil {
-		panic("failed to capture stdout or stderr\n")
-	}
-
-	return strings.TrimSuffix(string(stdoutBuf.Bytes()), "\n"), string(stderrBuf.Bytes())
+     var stdoutBuf, stderrBuf bytes.Buffer
+     
+     cmd := exec.Command(name, args...)
+     
+     if workdir != "" {
+         cmd.Dir = workdir
+     }   
+     
+     cmd.Env = os.Environ()
+     
+     fmt.Printf("Executing: %s\n\n", strings.Join(cmd.Args, " "))
+     
+     stdoutIn, _ := cmd.StdoutPipe()
+     stderrIn, _ := cmd.StderrPipe()
+     
+     var errStdout, errStderr error
+     stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
+     stderr := io.MultiWriter(os.Stderr, &stderrBuf)
+     err := cmd.Start()
+     if err != nil {
+         panic(fmt.Sprintf("cmd.Start() failed with '%s'\n", err))
+     }   
+     
+     cout := make(chan bool)
+     cerr := make(chan bool)
+     
+     go func(c chan bool) {
+         _, errStdout = io.Copy(stdout, stdoutIn)
+         c <- true
+     }(cout)
+     
+     go func(c chan bool) {
+         _, errStderr = io.Copy(stderr, stderrIn)
+         c <- true
+     }(cerr)
+     
+     err = cmd.Wait()
+     if err != nil {
+         panic(fmt.Sprintf("cmd.Run() failed with %s\n", err))
+     }   
+     
+     <-cout
+     <-cerr
+     
+     if errStdout != nil || errStderr != nil {
+         panic("failed to capture stdout or stderr\n")
+     }   
+     
+     return strings.TrimSuffix(string(stdoutBuf.Bytes()), "\n"), string(stderrBuf.Bytes())
 }
 
 func findCommand(c string) string {
